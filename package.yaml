@@ -1,0 +1,51 @@
+name: haskell-template
+version: 0.0.0.0
+synopsis: A opinionated template for Haskell projects
+description: Please check out the README for more information.
+homepage: https://github.com/Airsequel/haskell-template#readme
+license: AGPL-3.0-or-later
+author: Adrian Sieber
+maintainer: github@ad-si.com
+copyright: Adrian Sieber
+category: Web
+
+extra-source-files:
+  - readme.md
+
+dependencies:
+  - base
+  - protolude
+
+default-extensions:
+  - NoImplicitPrelude
+  - OverloadedRecordDot
+  - OverloadedStrings
+
+ghc-options:
+  - -Wall
+  - -Wcompat
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wredundant-constraints
+  - -fno-warn-orphans
+
+library:
+  language: GHC2021
+  source-dirs: source
+
+executables:
+  haskell-template:
+    language: GHC2021
+    source-dirs: app
+    main: Main.hs
+    dependencies:
+      - haskell-template
+
+tests:
+  haskell-template-test:
+    language: GHC2021
+    source-dirs: tests
+    main: Spec.hs
+    dependencies:
+      - haskell-template
+      - hspec
