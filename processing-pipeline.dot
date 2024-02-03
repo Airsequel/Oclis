@@ -1,0 +1,55 @@
+digraph ProcessingPipeline {
+  graph [size="6"];
+  splines=ortho;
+
+  edge[fontname="Sans-Serif"]
+  node[style=filled, fillcolor=gray90]
+
+  node[fontname="Monospace"]
+  tokens [label="[Token]", shape="parallelogram"]
+  args [label="[Argument]", shape="parallelogram"]
+
+  node[fontname="Sans-Serif"]
+  in [label="CLI Input", shape="parallelogram"]
+  refine [label="Refine", shape="rectangle"]
+  exec [label="Execute", shape="rectangle"]
+  out [label="Output", shape="parallelogram"]
+  clispec [
+    shape="cylinder",
+    label=<
+<br/>
+CLI Spec<br/>
+<br/>
+<font point-size="10">  Provided by the user  </font>
+>
+    ]
+  mapping [
+    shape="cylinder",
+    label=<
+<br/>
+Argument<br/>
+↓<br/>
+Function<br/>
+<br/>
+<font point-size="10">  Provided by the user  </font>
+>
+    ]
+
+  in -> tokens [label="  Tokenize  "]
+  tokens -> refine
+  clispec -> refine
+  refine -> args
+  args -> exec
+  mapping -> exec
+  exec -> out
+
+  // Align clispec node to the right of refine and on the same level
+  refine -> clispec [style=invis]
+  clispec -> tokens [style=invis]
+  subgraph { rank=same; refine; clispec; }
+
+  // Align mapping node to the right of exec and on the same level
+  exec -> mapping [style=invis]
+  mapping -> args [style=invis]
+  subgraph { rank=same; exec; mapping; }
+}

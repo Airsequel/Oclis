@@ -19,6 +19,13 @@ But fear not, Oclis is here to help you out!
 4. Done 🎉
 
 
+## How It Works
+
+### Processing Pipeline
+
+![Processing Pipeline](./processing-pipeline.svg)
+
+
 ## Related
 
 ### Tools
