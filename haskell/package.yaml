@@ -13,8 +13,10 @@ extra-source-files:
   - readme.md
 
 dependencies:
+  - aeson
   - base
   - protolude
+  - raw-strings-qq
 
 default-extensions:
   - NoImplicitPrelude

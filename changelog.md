@@ -1,4 +1,4 @@
-# Haskell Template
+# Oclis Changelog
 
-- 2023-11-27 - 0.0.0.0
-  - Initial release
+- [TBD] - 0.1.0.0
+  - First implementation of code generation for Haskell and PureScript

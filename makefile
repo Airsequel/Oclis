@@ -1,11 +1,12 @@
-.PHONY: test
-test:
-	stack test
+.PHONY: help
+help: makefile
+	@tail -n +4 makefile | grep ".PHONY"
+
 
 .PHONY: build
-build:
-	stack build
+build: cli-spec.json
 
-.PHONY: install
-install:
-	stack install
+
+cli-spec.json: oclis-contract.ncl oclis.ncl
+	echo '(import "oclis-contract.ncl") & (import "oclis.ncl")' \
+	| nickel export --format json > $@
