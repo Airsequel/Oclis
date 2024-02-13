@@ -73,6 +73,8 @@ But fear not, Oclis is here to help you out!
 
 ### Generate GUIs From Simple Code
 
+- [Sparkle] - Infer user interfaces from type signatures.
 - [Streamlit] - Turns data scripts into shareable web apps.
 
+[Sparkle]: https://github.com/sharkdp/purescript-sparkle
 [Streamlit]: https://github.com/streamlit/streamlit
