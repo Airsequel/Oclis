@@ -5,5 +5,4 @@
     Generate a CLI parser and executor
     from a given `oclis.ncl` specification file.
   "%,
-  run = "runApp"
 }

@@ -4,12 +4,12 @@ help: makefile
 
 
 .PHONY: build
-build: cli-spec.json processing-pipeline.svg
+build: processing-pipeline.svg
 
 
-cli-spec.json: oclis-contract.ncl oclis.ncl
-	echo '(import "oclis-contract.ncl") & (import "oclis.ncl")' \
-	| nickel export --format json > $@
+.PHONY: test
+test:
+	@cargo test
 
 
 processing-pipeline.svg: processing-pipeline.dot
