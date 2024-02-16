@@ -32,6 +32,9 @@ But fear not, Oclis is here to help you out!
 
 ## Related
 
+For a full overview, check out the repo
+[awesome-cli-frameworks](https://github.com/shadawck/awesome-cli-frameworks).
+
 ### Tools
 
 - [CLI Definition Language] - DSL for defining command line interfaces
