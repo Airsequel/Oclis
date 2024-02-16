@@ -13,10 +13,14 @@ But fear not, Oclis is here to help you out!
 
 ## Usage
 
-1. Write a simple specification file.
-2. Run `oclis` to generate the CLI parsing code for the language of your choice.
-3. Define the handler functions for your commands.
-4. Done 🎉
+1. Install Oclis with
+   `cargo install oclis`
+1. Create specifcation file skeleton with
+   `oclis init`
+1. Manually edit the generated `oclis.ncl` file
+1. Run `oclis build` to generate the CLI parsing code (automatically detects main repo language)
+1. Define the handler functions for your commands.
+1. Build and install your project 🎉
 
 
 ## How It Works
