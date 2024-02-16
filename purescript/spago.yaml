@@ -1,0 +1,19 @@
+package:
+  name: purescript
+  dependencies:
+    - argonaut
+    - argonaut-generic
+    - console
+    - effect
+    - node-process
+    - prelude
+    - result
+    - spec
+    - strings
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  package_set:
+    registry: 50.1.0
+  extra_packages: {}
