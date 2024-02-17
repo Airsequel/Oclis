@@ -14,28 +14,32 @@ But fear not, Oclis is here to help you out!
 ## Usage
 
 1. Install Oclis with
-   `cargo install oclis`
-1. Create specifcation file skeleton with
-   `oclis init`
-1. Manually edit the generated `oclis.ncl` file
-1. Run `oclis build` to generate the CLI parsing code (automatically detects main repo language)
-1. Define the handler functions for your commands.
-1. Build and install your project 🎉
+   `cargo install --git https://github.com/Airsequel/Oclis`
+1. Create a `oclis.ncl` specifcation file in the root of your project. \
+   (Check out the [examples](./examples) directory for inspiration.)
+1. Run `oclis build` to generate the CLI parsing code \
+   (Automatically detects main repo language,
+   but only supports PureScript at the moment.)
+1. Define the handler functions for your commands. \
+   (Check out the [main function of Transity][tr-main] for an example.)
+1. Build and use your project as usual 🎉
+
+[tr-main]: https://github.com/feramhq/Transity/blob/master/src/Main.purs#L332
+
+> [!NOTE]
+> The generated code must be committed to the repository.
 
 
 ## How It Works
 
-### Processing Pipeline
+### Processing Pipeline of the Generated CLI App
 
 ![Processing Pipeline](./processing-pipeline.svg)
 
 
 ## Related
 
-For a full overview, check out the repo
-[awesome-cli-frameworks](https://github.com/shadawck/awesome-cli-frameworks).
-
-### Tools
+### Other CLI Builders
 
 - [CLI Definition Language] - DSL for defining command line interfaces
     of C++ programs.
@@ -47,6 +51,13 @@ For a full overview, check out the repo
 [Decli]: https://github.com/woile/decli
 [docopt]: http://docopt.org/
 [make-cli]: https://github.com/dword-design/make-cli
+
+
+### Manual CLI Frameworks
+
+Check out the repo
+[awesome-cli-frameworks](https://github.com/shadawck/awesome-cli-frameworks)
+for a full overview.
 
 
 ### Specifications

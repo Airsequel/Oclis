@@ -1,4 +1,6 @@
--- | CAUTION: THIS FILE IS GENERATED. DO NOT EDIT MANUALLY!
+-- | CAUTION:
+-- | THIS FILE WAS GENERATED BASED ON `oclis.ncl`.
+-- | DO NOT EDIT MANUALLY!
 
 module Oclis.Tokenizer
   ( CliArgToken(..)

@@ -7,9 +7,14 @@ help: makefile
 build: processing-pipeline.svg
 
 
+.PHONY: install
+install:
+	cargo install --path .
+
+
 .PHONY: test
 test:
-	@cargo test
+	cargo test
 
 
 processing-pipeline.svg: processing-pipeline.dot
