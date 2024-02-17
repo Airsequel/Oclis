@@ -14,6 +14,7 @@ install:
 
 .PHONY: test
 test:
+	cargo clippy
 	cargo test
 
 
