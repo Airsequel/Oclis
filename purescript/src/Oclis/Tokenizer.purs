@@ -1,10 +1,12 @@
-module CliSpec.Tokenizer
+-- | CAUTION: THIS FILE IS GENERATED. DO NOT EDIT MANUALLY!
+
+module Oclis.Tokenizer
   ( CliArgToken(..)
   , tokenizeCliArgument
   , tokenizeCliArguments
   ) where
 
-import CliSpec.Types (CliArgPrim(..))
+import Oclis.Types (CliArgPrim(..))
 import Data.Array (concat, drop, groupBy, null, take, (:))
 import Data.Array.NonEmpty (toArray)
 import Data.Foldable (elem)

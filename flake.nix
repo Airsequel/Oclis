@@ -25,12 +25,16 @@
         defaultPackage = naersk-lib.buildPackage ./.;
         devShell = with pkgs; mkShell {
           buildInputs = [
-            graphviz  # For generating the processing-pipeline infographic
+            # For Oclis itself
             cargo
+            graphviz  # For generating the processing-pipeline infographic
+            pre-commit
             rustc
             rustfmt
-            pre-commit
             rustPackages.clippy
+
+            # For target languages PureScript and JavaScript
+            nodejs_20
           ] ++ systemSpecificPkgs;
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
