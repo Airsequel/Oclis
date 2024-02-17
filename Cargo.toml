@@ -1,6 +1,15 @@
 [package]
+categories = [
+  "command-line-interface",
+  "command-line-utilities",
+  "development-tools",
+]
+description = "CLI builder based on a simple, obvious specification file"
 edition = "2021"
+keywords = ["cli", "generator", "builder", "specification"]
+license = "ISC"
 name = "oclis"
+repository = "https://github.com/Airsequel/Oclis"
 version = "0.1.0"
 
 [dependencies]
