@@ -45,9 +45,10 @@ enum Commands {
     /// The path to the spec file
     #[arg(default_value = "./oclis.ncl")]
     spec_file: Option<String>,
-
-    #[arg(short, long, default_value_t = Language::Json)]
-    language: Language,
+    //
+    // TODO: Reactivate when the `language` argument is used
+    // #[arg(short, long, default_value_t = Language::Json)]
+    // language: Language,
   },
 }
 
@@ -254,11 +255,11 @@ fn main() -> Result<(), String> {
   match cli.command {
     Commands::Build {
       spec_file,
-      language,
+      // language,
     } => {
-      if language != Language::Json {
-        println!("Value for language: {:?}", language);
-      }
+      // if language != Language::Json {
+      //   println!("Value for language: {:?}", language);
+      // }
 
       match spec_file.as_deref() {
         Some(spec_file) => {
