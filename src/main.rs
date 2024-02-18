@@ -50,6 +50,8 @@ enum Commands {
     // #[arg(short, long, default_value_t = Language::Json)]
     // language: Language,
   },
+  /// Creates a bare bones `oclis.ncl` file
+  Init,
 }
 
 fn convert_spec_to_json(
@@ -268,6 +270,20 @@ fn main() -> Result<(), String> {
             .map_err(|err| err.to_string())
         }
         None => Err(String::from("No spec file provided")),
+      }
+    }
+
+    Commands::Init => {
+      let cwd_path = std::env::current_dir().unwrap();
+      let cwd = cwd_path.file_name().unwrap();
+      let cwd_str = cwd.to_str().unwrap();
+
+      if fs::metadata("oclis.ncl").is_ok() {
+        Err(String::from("Spec file 'oclis.ncl' already exists"))
+      } else {
+        const TEMPLATE: &str = include_str!("template.ncl");
+        let spec = TEMPLATE.replace("{{name}}", cwd_str);
+        fs::write("oclis.ncl", spec).map_err(|err| err.to_string())
       }
     }
   }

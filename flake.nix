@@ -28,6 +28,7 @@
             # For Oclis itself
             cargo
             graphviz  # For generating the processing-pipeline infographic
+            nickel  # For testing the Nickel code
             pre-commit
             rustc
             rustfmt

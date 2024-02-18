@@ -120,6 +120,7 @@ let Command = {
     | Array Option,
   arguments
     | doc "The list of arguments"
+    | optional
     | Array Argument
     | NotRequiredIfList,
   funcName

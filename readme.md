@@ -13,21 +13,18 @@ But fear not, Oclis is here to help you out!
 
 ## Usage
 
-1. Install Oclis with
-   `cargo install --git https://github.com/Airsequel/Oclis`
-1. Create a `oclis.ncl` specifcation file in the root of your project. \
-   (Check out the [examples](./examples) directory for inspiration.)
+1. `cargo install oclis`
+1. `oclis init` - Creates an `oclis.ncl` specifcation file.
+1. Adapt the specification file to your liking. \
+   (Check out the [examples directory](./examples) for inspiration.)
 1. Run `oclis build` to generate the CLI parsing code \
-   (Automatically detects main repo language,
-   but only supports PureScript at the moment.)
+   (It automatically detects the main repo language,
+   but only PureScript is supported at the moment.)
 1. Define the handler functions for your commands. \
    (Check out the [main function of Transity][tr-main] for an example.)
-1. Build and use your project as usual 🎉
+1. Commit the generated code to the repository.
 
 [tr-main]: https://github.com/feramhq/Transity/blob/master/src/Main.purs#L332
-
-> [!NOTE]
-> The generated code must be committed to the repository.
 
 
 ## How It Works
