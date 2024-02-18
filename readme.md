@@ -20,6 +20,9 @@ But fear not, Oclis is here to help you out!
 1. Run `oclis build` to generate the CLI parsing code \
    (It automatically detects the main repo language,
    but only PureScript is supported at the moment.)
+1. Add missing dependencies to your project. \
+   (E.g. for PureScript check out the
+   [spago.yaml](./purescript/spago.yaml) file.)
 1. Define the handler functions for your commands. \
    (Check out the [main function of Transity][tr-main] for an example.)
 1. Commit the generated code to the repository.
