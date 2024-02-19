@@ -8,10 +8,10 @@ import Data.Monoid (power)
 import Data.Result (Result(..))
 import Data.String (replaceAll, Pattern(..), Replacement(..))
 import Effect.Aff (Aff)
+import Effect (Effect)
 import Effect.Class (liftEffect)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual, shouldReturn)
-import Test.Spec.Assertions.String (shouldStartWith)
 
 import Oclis (buildUsageString, callCliAppWith, callCliAppWithOutput)
 import Oclis.Types (CliArgPrim(..), CliArgument(..), Oclis(..), emptyCliSpecRaw)
@@ -45,6 +45,12 @@ shouldBeOk value = case value of
 
 shouldEqualString :: String -> String -> Aff Unit
 shouldEqualString v1 v2 =
+  case v1 `testEqualityTo` v2 of
+    Error error -> fail error
+    Ok _ -> (pure unit)
+
+shouldEqualStrEff :: String -> String -> Effect Unit
+shouldEqualStrEff v1 v2 =
   case v1 `testEqualityTo` v2 of
     Error error -> fail error
     Ok _ -> (pure unit)
@@ -125,7 +131,7 @@ tests =
             }
 
         buildUsageString cliSpecRaw `shouldEqualString`
-          ( "USAGE: git [command] [options] [args]\n"
+          ( "USAGE: git [command]\n"
               <> "\n"
               <> "The git command\n"
               <> "\n"
@@ -183,13 +189,13 @@ tests =
           Ok usageStr ->
             usageStr `shouldEqualString`
               -- TODO: Should be `git pull`
-              ( "USAGE: pull [command] [options] [args]\n"
+              ( "USAGE: pull [dir…]\n"
                   <> "\n"
                   <> "The pull sub-command\n"
                   <> "\n"
                   <> "COMMANDS:\n"
                   <> "\n"
-                  <> "help  Show this help message\n"
+                  <> "help     Show this help message\n"
                   <> "version  Show version\n"
               )
 
@@ -244,8 +250,16 @@ tests =
           )
         executor context = do
           context.command `shouldEqual` (Just "git")
-          context.usageString `shouldStartWith`
-            "USAGE: git [command] [options] [args]"
+          context.usageString `shouldEqualStrEff`
+            ( "USAGE: git [options]\n"
+                <> "\n"
+                <> "The git command\n"
+                <> "\n"
+                <> "COMMANDS:\n"
+                <> "\n"
+                <> "help     Show this help message\n"
+                <> "version  Show version\n"
+            )
           context.arguments `shouldEqual`
             [ (FlagLong "color"), (FlagLong "debug") ]
           pure $ Ok unit
@@ -285,8 +299,16 @@ tests =
           )
         executor context = do
           context.command `shouldEqual` Just "pull"
-          context.usageString `shouldStartWith`
-            "USAGE: pull [command] [options] [args]"
+          context.usageString `shouldEqualStrEff`
+            ( "USAGE: pull dir\n"
+                <> "\n"
+                <> "The pull sub-command\n"
+                <> "\n"
+                <> "COMMANDS:\n"
+                <> "\n"
+                <> "help     Show this help message\n"
+                <> "version  Show version\n"
+            )
           context.arguments `shouldEqual` [ (ValArg (TextArg "dir")) ]
           pure $ Ok unit
 
@@ -324,8 +346,16 @@ tests =
           )
         executor context = do
           context.command `shouldEqual` Just "pull"
-          context.usageString `shouldStartWith`
-            "USAGE: pull [command] [options] [args]"
+          context.usageString `shouldEqualStrEff`
+            ( "USAGE: pull [options]\n"
+                <> "\n"
+                <> "The pull sub-command\n"
+                <> "\n"
+                <> "COMMANDS:\n"
+                <> "\n"
+                <> "help     Show this help message\n"
+                <> "version  Show version\n"
+            )
           context.arguments `shouldEqual` [ (FlagLong "stats") ]
           pure $ Ok unit
 
@@ -366,8 +396,16 @@ tests =
 
         executor context = do
           context.command `shouldEqual` Just "pull"
-          context.usageString `shouldStartWith`
-            "USAGE: pull [command] [options] [args]"
+          context.usageString `shouldEqualStrEff`
+            ( "USAGE: pull [options]\n"
+                <> "\n"
+                <> "\n"
+                <> "\n"
+                <> "COMMANDS:\n"
+                <> "\n"
+                <> "help     Show this help message\n"
+                <> "version  Show version\n"
+            )
           context.arguments `shouldEqual`
             [ (OptionLong "remote" (TextArg "url")) ]
           pure $ Ok unit

@@ -29,7 +29,7 @@ import Data.Argonaut.Parser (jsonParser)
 import Data.Array (drop, find, fold, foldMap, foldl, head, length, replicate)
 import Data.Bifunctor (lmap)
 import Data.Eq ((==))
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, isJust)
 import Data.Result (Result(..), fromEither)
 import Data.String as Str
 import Data.String.Pattern (Pattern(..))
@@ -179,8 +179,8 @@ buildUsageString cliSpecRaw = do
                     Nothing -> ""
               in
                 if arg.optional == Just true --
-                then "[" <> arg.name <> moreThanOne <> "] "
-                else arg.name <> " "
+                then " [" <> arg.name <> moreThanOne <> "]"
+                else " " <> arg.name
           )
         Nothing -> ""
 
@@ -188,17 +188,6 @@ buildUsageString cliSpecRaw = do
     calcTotalLength cmd =
       (Str.length cmd.name) +
         (Str.length $ buildArgsString cmd.arguments)
-
-    lengthLongestCmd :: Int
-    lengthLongestCmd =
-      cliSpecRaw.commands
-        # fromMaybe []
-        # foldl
-            ( \acc (Oclis cmd) -> do
-                let totalLength = calcTotalLength cmd
-                if acc > totalLength then acc else totalLength
-            )
-            0
 
     helpCmd = Oclis $
       ( emptyCliSpecRaw
@@ -214,7 +203,31 @@ buildUsageString cliSpecRaw = do
           }
       )
 
-  "USAGE: " <> cliSpecRaw.name <> " [command] [options] [args]"
+    lengthLongestCmd :: Int
+    lengthLongestCmd =
+      (cliSpecRaw.commands <> Just [ helpCmd, versionCmd ])
+        # fromMaybe []
+        # foldl
+            ( \acc (Oclis cmd) -> do
+                let totalLength = calcTotalLength cmd
+                if acc > totalLength then acc else totalLength
+            )
+            0
+
+    usageHeader = "USAGE: "
+      <> cliSpecRaw.name
+      <>
+        ( if isJust cliSpecRaw.options --
+          then " [options]"
+          else ""
+        )
+      <>
+        ( if isJust cliSpecRaw.commands --
+          then " [command]"
+          else buildArgsString cliSpecRaw.arguments
+        )
+
+  usageHeader
     <> "\n\n"
     <> cliSpecRaw.description
     <> "\n\n"
@@ -226,8 +239,8 @@ buildUsageString cliSpecRaw = do
           # foldMap
               ( \(Oclis cmd) ->
                   cmd.name
-                    <> " "
                     <> buildArgsString cmd.arguments
+                    <> " "
                     <>
                       ( repeatString " "
                           (lengthLongestCmd - calcTotalLength cmd)
