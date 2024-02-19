@@ -131,12 +131,15 @@ tests =
             }
 
         buildUsageString cliSpecRaw `shouldEqualString`
-          ( "USAGE: git [command]\n"
+          ( "USAGE: git [options…] [command]\n"
               <> "\n"
               <> "The git command\n"
               <> "\n"
-              <> "COMMANDS:\n"
+              <> "OPTIONS:\n"
+              <> "--help, -h     Show this help message\n"
+              <> "--version, -v  Show version\n"
               <> "\n"
+              <> "COMMANDS:\n"
               <> "add-file path  The add-file sub-command\n"
               <> "commit [msg]   The commit sub-command\n"
               <> "pull [dir…]    The pull sub-command\n"
@@ -189,14 +192,13 @@ tests =
           Ok usageStr ->
             usageStr `shouldEqualString`
               -- TODO: Should be `git pull`
-              ( "USAGE: pull [dir…]\n"
+              ( "USAGE: pull [options…] [dir…]\n"
                   <> "\n"
                   <> "The pull sub-command\n"
                   <> "\n"
-                  <> "COMMANDS:\n"
-                  <> "\n"
-                  <> "help     Show this help message\n"
-                  <> "version  Show version\n"
+                  <> "OPTIONS:\n"
+                  <> "--help, -h     Show this help message\n"
+                  <> "--version, -v  Show version\n"
               )
 
     describe "Version" do
@@ -251,12 +253,17 @@ tests =
         executor context = do
           context.command `shouldEqual` (Just "git")
           context.usageString `shouldEqualStrEff`
-            ( "USAGE: git [options]\n"
+            ( "USAGE: git [options…] [command]\n"
                 <> "\n"
                 <> "The git command\n"
                 <> "\n"
-                <> "COMMANDS:\n"
+                <> "OPTIONS:\n"
+                <> "--color        Set color of output\n"
+                <> "--debug        Activate debug mode\n"
+                <> "--help, -h     Show this help message\n"
+                <> "--version, -v  Show version\n"
                 <> "\n"
+                <> "COMMANDS:\n"
                 <> "help     Show this help message\n"
                 <> "version  Show version\n"
             )
@@ -300,14 +307,13 @@ tests =
         executor context = do
           context.command `shouldEqual` Just "pull"
           context.usageString `shouldEqualStrEff`
-            ( "USAGE: pull dir\n"
+            ( "USAGE: pull [options…] dir\n"
                 <> "\n"
                 <> "The pull sub-command\n"
                 <> "\n"
-                <> "COMMANDS:\n"
-                <> "\n"
-                <> "help     Show this help message\n"
-                <> "version  Show version\n"
+                <> "OPTIONS:\n"
+                <> "--help, -h     Show this help message\n"
+                <> "--version, -v  Show version\n"
             )
           context.arguments `shouldEqual` [ (ValArg (TextArg "dir")) ]
           pure $ Ok unit
@@ -319,40 +325,44 @@ tests =
     it "executes a sub-command with one flag" do
       let
         cliSpec = Oclis
-          ( emptyCliSpecRaw
-              { name = "git"
-              , description = "The git command"
-              , funcName = Just "runApp"
-              , version = Just "1.0.0"
-              , commands = Just
-                  [ Oclis
-                      ( emptyCliSpecRaw
-                          { name = "pull"
-                          , description = "The pull sub-command"
-                          , funcName = Just "runPull"
-                          , options = Just
-                              [ { name: Just "stats"
-                                , shortName: Nothing
-                                , description: "Statistics for pull"
-                                , argument: Nothing
-                                , optional: Nothing
-                                , default: Nothing
-                                }
-                              ]
-                          }
-                      )
-                  ]
-              }
-          )
+          emptyCliSpecRaw
+            { name = "git"
+            , description = "The git command"
+            , funcName = Just "runApp"
+            , version = Just "1.0.0"
+            , commands = Just
+                [ Oclis
+                    ( emptyCliSpecRaw
+                        { name = "pull"
+                        , description = "The pull sub-command"
+                        , funcName = Just "runPull"
+                        , options = Just
+                            [ { name: Just "stats"
+                              , shortName: Nothing
+                              , description: "Statistics for pull"
+                              , argument: Nothing
+                              , optional: Nothing
+                              , default: Nothing
+                              }
+                            ]
+                        }
+                    )
+                ]
+            }
+
         executor context = do
           context.command `shouldEqual` Just "pull"
           context.usageString `shouldEqualStrEff`
-            ( "USAGE: pull [options]\n"
+            ( "USAGE: pull [options…] [command]\n"
                 <> "\n"
                 <> "The pull sub-command\n"
                 <> "\n"
-                <> "COMMANDS:\n"
+                <> "OPTIONS:\n"
+                <> "--stats        Statistics for pull\n"
+                <> "--help, -h     Show this help message\n"
+                <> "--version, -v  Show version\n"
                 <> "\n"
+                <> "COMMANDS:\n"
                 <> "help     Show this help message\n"
                 <> "version  Show version\n"
             )
@@ -365,7 +375,7 @@ tests =
         )
         `shouldReturn` (Ok "")
 
-    it "executes a sub-command with one option" do
+    it "executes a sub-command with options" do
       let
         cliSpec = Oclis
           emptyCliSpecRaw
@@ -388,6 +398,19 @@ tests =
                               , optional: Nothing
                               , default: Nothing
                               }
+                            , { name: Just "color"
+                              , shortName: Just "c"
+                              , description: "Set color of output"
+                              , argument: Just
+                                  { name: "rgb"
+                                  , description: "RGB color"
+                                  , type: "Text"
+                                  , optional: Just true
+                                  , default: Nothing
+                                  }
+                              , optional: Just true
+                              , default: Nothing
+                              }
                             ]
                         }
                     )
@@ -397,12 +420,15 @@ tests =
         executor context = do
           context.command `shouldEqual` Just "pull"
           context.usageString `shouldEqualStrEff`
-            ( "USAGE: pull [options]\n"
+            ( "USAGE: pull [options…] [command]\n"
                 <> "\n"
-                <> "\n"
+                <> "OPTIONS:\n"
+                <> "--remote=url       Remote to pull from\n"
+                <> "--color[=rgb], -c  Set color of output\n"
+                <> "--help, -h         Show this help message\n"
+                <> "--version, -v      Show version\n"
                 <> "\n"
                 <> "COMMANDS:\n"
-                <> "\n"
                 <> "help     Show this help message\n"
                 <> "version  Show version\n"
             )

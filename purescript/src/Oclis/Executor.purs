@@ -9,16 +9,17 @@ import Prelude
   , bind
   , const
   , discard
+  , identity
   , pure
   , unit
-  , (-)
   , (#)
+  , ($)
   , (+)
+  , (-)
   , (<#>)
   , (<>)
   , (>)
   , (||)
-  , ($)
   )
 
 import Ansi.Codes (Color(..))
@@ -26,7 +27,17 @@ import Ansi.Output (withGraphics, foreground)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Argonaut.Parser (jsonParser)
-import Data.Array (drop, find, fold, foldMap, foldl, head, length, replicate)
+import Data.Array
+  ( catMaybes
+  , drop
+  , find
+  , fold
+  , foldMap
+  , foldl
+  , head
+  , length
+  , replicate
+  )
 import Data.Bifunctor (lmap)
 import Data.Eq ((==))
 import Data.Maybe (Maybe(..), fromMaybe, isJust)
@@ -189,23 +200,64 @@ buildUsageString cliSpecRaw = do
       (Str.length cmd.name) +
         (Str.length $ buildArgsString cmd.arguments)
 
-    helpCmd = Oclis $
-      ( emptyCliSpecRaw
-          { name = "help"
-          , description = "Show this help message"
-          }
-      )
+    helpOption = emptyOption
+      { name = Just "help"
+      , shortName = Just "h"
+      , description = "Show this help message"
+      }
 
-    versionCmd = Oclis
-      ( emptyCliSpecRaw
-          { name = "version"
-          , description = "Show version"
-          }
-      )
+    versionOption = emptyOption
+      { name = Just "version"
+      , shortName = Just "v"
+      , description = "Show version"
+      }
+
+    allOptionsMb =
+      cliSpecRaw.options <> Just [ helpOption, versionOption ]
+
+    shortAndLongFlag :: Option -> String
+    shortAndLongFlag opt =
+      [ (opt.name <#> (\n -> "--" <> n))
+          <>
+            ( opt.argument <#>
+                ( \arg ->
+                    ( if arg.optional == Just true --
+                      then \a -> "[" <> a <> "]"
+                      else identity
+                    ) ("=" <> arg.name)
+                )
+            )
+      , (opt.shortName <#> (\n -> "-" <> n))
+      ]
+        # catMaybes
+        # Str.joinWith ", "
+
+    lengthLongestOption :: Int
+    lengthLongestOption =
+      allOptionsMb
+        # fromMaybe []
+        # foldl
+            ( \acc opt -> do
+                let totalLength = Str.length $ shortAndLongFlag opt
+                if acc > totalLength then acc else totalLength
+            )
+            0
+
+    helpCmd = Oclis emptyCliSpecRaw
+      { name = "help"
+      , description = "Show this help message"
+      }
+
+    versionCmd = Oclis emptyCliSpecRaw
+      { name = "version"
+      , description = "Show version"
+      }
+
+    allCommandsMb = cliSpecRaw.commands <> Just [ helpCmd, versionCmd ]
 
     lengthLongestCmd :: Int
     lengthLongestCmd =
-      (cliSpecRaw.commands <> Just [ helpCmd, versionCmd ])
+      allCommandsMb
         # fromMaybe []
         # foldl
             ( \acc (Oclis cmd) -> do
@@ -217,39 +269,65 @@ buildUsageString cliSpecRaw = do
     usageHeader = "USAGE: "
       <> cliSpecRaw.name
       <>
-        ( if isJust cliSpecRaw.options --
-          then " [options]"
+        ( if isJust allOptionsMb --
+          then " [options…]"
           else ""
         )
       <>
-        ( if isJust cliSpecRaw.commands --
-          then " [command]"
-          else buildArgsString cliSpecRaw.arguments
+        ( if isJust cliSpecRaw.arguments --
+          then buildArgsString cliSpecRaw.arguments
+          else " [command]"
         )
+      <> "\n"
 
   usageHeader
-    <> "\n\n"
-    <> cliSpecRaw.description
-    <> "\n\n"
-    <> "COMMANDS:"
-    <> "\n\n"
+    <> "\n"
     <>
-      ( cliSpecRaw.commands <> Just [ helpCmd, versionCmd ]
+      ( if cliSpecRaw.description == "" --
+        then ""
+        else cliSpecRaw.description
+          <> "\n\n"
+      )
+    <> "OPTIONS:\n"
+    <>
+      ( allOptionsMb -- TODO: Add short flags
+
           # fromMaybe []
           # foldMap
-              ( \(Oclis cmd) ->
-                  cmd.name
-                    <> buildArgsString cmd.arguments
-                    <> " "
+              ( \opt ->
+                  shortAndLongFlag opt
+                    <> "  "
                     <>
                       ( repeatString " "
-                          (lengthLongestCmd - calcTotalLength cmd)
+                          ( lengthLongestOption -
+                              Str.length (shortAndLongFlag opt)
+                          )
                       )
-                    <> " "
-                    <> cmd.description
+                    <> opt.description
                     <> "\n"
               )
       )
+    <>
+      if isJust cliSpecRaw.arguments --
+      then ""
+      else "\nCOMMANDS:\n"
+        <>
+          ( allCommandsMb
+              # fromMaybe []
+              # foldMap
+                  ( \(Oclis cmd) ->
+                      cmd.name
+                        <> buildArgsString cmd.arguments
+                        <> " "
+                        <>
+                          ( repeatString " "
+                              (lengthLongestCmd - calcTotalLength cmd)
+                          )
+                        <> " "
+                        <> cmd.description
+                        <> "\n"
+                  )
+          )
 
 -- | Like `callCliAppWithOutput` but does print the result to stdout
 callCliApp :: (ExecutorContext -> Effect (Result String Unit)) -> Effect Unit

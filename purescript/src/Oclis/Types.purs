@@ -93,6 +93,16 @@ type Option =
   , default :: Maybe CliArgPrim
   }
 
+emptyOption :: Option
+emptyOption =
+  { name: Nothing
+  , shortName: Nothing
+  , description: ""
+  , argument: Nothing
+  , optional: Nothing
+  , default: Nothing
+  }
+
 type CliSpecRaw =
   { name :: String
   , description :: String
