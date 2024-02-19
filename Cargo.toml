@@ -10,7 +10,7 @@ keywords = ["cli", "generator", "builder", "specification"]
 license = "ISC"
 name = "oclis"
 repository = "https://github.com/Airsequel/Oclis"
-version = "0.2.0"
+version = "0.3.0"
 
 [dependencies]
 clap = {version = "4.5.0", features = ["derive"]}
