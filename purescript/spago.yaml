@@ -4,6 +4,7 @@ package:
     - argonaut
     - argonaut-generic
     - console
+    - debug
     - effect
     - node-process
     - prelude

@@ -9,7 +9,7 @@ import Effect.Class (liftEffect)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual, shouldReturn)
 
-import Oclis (callCommand)
+import Oclis (callCliApp, callCommand)
 import Oclis.Parser (tokensToCliArguments)
 import Oclis.Tokenizer (tokenizeCliArguments)
 import Oclis.Types (CliArgPrim(..), CliArgument(..), Oclis(..), emptyCliSpecRaw)
@@ -17,6 +17,16 @@ import Oclis.Types (CliArgPrim(..), CliArgument(..), Oclis(..), emptyCliSpecRaw)
 tests :: Spec Unit
 tests =
   describe "Execution" do
+    it "executes a command with included spec" do
+      let
+        executor context = do
+          context.command `shouldEqual` Nothing
+          context.usageString `shouldEqual` "xxx"
+          context.arguments `shouldEqual` []
+          pure $ Ok unit
+
+      liftEffect (callCliApp executor) `shouldReturn` unit
+
     describe "Help" do
       let
         cliSpec = Oclis emptyCliSpecRaw
@@ -65,12 +75,12 @@ tests =
         cliSpec = Oclis emptyCliSpecRaw
         usageString = "Irrelevant"
         executor context = do
-          context.command `shouldEqual` Just "help"
+          context.command `shouldEqual` Just "version"
           context.usageString `shouldEqual` usageString
           context.arguments `shouldEqual` []
           pure $ Ok unit
 
-      it "shows help output for -v" do
+      it "shows version output for -v" do
         let
           toolArgs = [ "git", "-v" ]
           tokens = tokenizeCliArguments toolArgs
@@ -81,7 +91,7 @@ tests =
             liftEffect (callCommand cliSpec usageString cliArgs executor)
               `shouldReturn` (Ok unit)
 
-      it "shows help output for --version" do
+      it "shows version output for --version" do
         let
           toolArgs = [ "git", "--version" ]
           tokens = tokenizeCliArguments toolArgs
@@ -92,9 +102,9 @@ tests =
             liftEffect (callCommand cliSpec usageString cliArgs executor)
               `shouldReturn` (Ok unit)
 
-      it "shows help output for `help`" do
+      it "shows version output for `version`" do
         let
-          toolArgs = [ "git", "help" ]
+          toolArgs = [ "git", "version" ]
           tokens = tokenizeCliArguments toolArgs
 
         case tokensToCliArguments cliSpec tokens of
