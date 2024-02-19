@@ -83,7 +83,7 @@ callCommand (Oclis cliSpec) usageString args executor = do
       | firstArg == FlagShort 'v'
           || firstArg == FlagLong "version"
           || firstArg == CmdArg "version" -> do
-          log usageString
+          log $ cliSpec.version # fromMaybe "0"
           pure $ Ok unit
 
     Just _mainCmd ->
@@ -101,7 +101,7 @@ callCommand (Oclis cliSpec) usageString args executor = do
               || arg == (FlagLong "version")
               || arg == (FlagShort 'v') -> do
               -- TODO: Only show version of subcommand (if available)
-              log (cliSpec.version # fromMaybe "0")
+              log $ cliSpec.version # fromMaybe "0"
               pure $ Ok unit
 
         Just (CmdArg cmdName) -> do
