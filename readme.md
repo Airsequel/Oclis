@@ -37,6 +37,24 @@ But fear not, Oclis is here to help you out!
 ![Processing Pipeline](./processing-pipeline.svg)
 
 
+### Unsupported CLI designs
+
+Some features of other CLI frameworks are deliberately not supported:
+
+- Specifying a flag several times. (e.g. `tar -v -v -v`)
+   This is error prone as it's easy to accidentally add it several times.
+   Use a numerical verbosity flag instead (e.g. `tar -v=3`)
+   or define your own counting system (e.g. `tar -v=xxx`)
+- Specifying flags/options after the arguments.
+   (e.g. `pandoc in.md --output=out.pdf`)
+   Disallowing this helps to prevent errors from accidentally providing
+   an argument which is understood as a flag/option.
+   Suggested alternatives:
+   - Sub-command: `pandoc convert in.md out.pdf`
+   - Option first: `pandoc --output=out.pdf in.md`
+   - Extra option: `pandoc --input=in.md --output=out.pdf`
+
+
 ## Related
 
 ### Other CLI Builders
