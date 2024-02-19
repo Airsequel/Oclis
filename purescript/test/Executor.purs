@@ -2,16 +2,17 @@ module Test.Executor where
 
 import Prelude (Unit, pure, unit, ($))
 
-import Oclis (callCommand)
-import Oclis.Parser (tokensToCliArguments)
-import Oclis.Tokenizer (tokenizeCliArguments)
-import Oclis.Types (CliArgPrim(..), CliArgument(..), Oclis(..), emptyCliSpecRaw)
 import Control.Bind (discard)
 import Data.Maybe (Maybe(..))
 import Data.Result (Result(..))
 import Effect.Class (liftEffect)
 import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (shouldEqual, fail, shouldReturn)
+import Test.Spec.Assertions (fail, shouldEqual, shouldReturn)
+
+import Oclis (callCommand)
+import Oclis.Parser (tokensToCliArguments)
+import Oclis.Tokenizer (tokenizeCliArguments)
+import Oclis.Types (CliArgPrim(..), CliArgument(..), Oclis(..), emptyCliSpecRaw)
 
 tests :: Spec Unit
 tests =
@@ -20,10 +21,10 @@ tests =
       let
         cliSpec = Oclis emptyCliSpecRaw
         usageString = "Irrelevant"
-        executor cmdName usageStr providedArgs = do
-          cmdName `shouldEqual` "help"
-          usageStr `shouldEqual` usageString
-          providedArgs `shouldEqual` []
+        executor context = do
+          context.command `shouldEqual` Just "help"
+          context.usageString `shouldEqual` usageString
+          context.arguments `shouldEqual` []
           pure $ Ok unit
 
       it "shows help output for -h" do
@@ -63,10 +64,10 @@ tests =
       let
         cliSpec = Oclis emptyCliSpecRaw
         usageString = "Irrelevant"
-        executor cmdName usageStr providedArgs = do
-          cmdName `shouldEqual` "help"
-          usageStr `shouldEqual` usageString
-          providedArgs `shouldEqual` []
+        executor context = do
+          context.command `shouldEqual` Just "help"
+          context.usageString `shouldEqual` usageString
+          context.arguments `shouldEqual` []
           pure $ Ok unit
 
       it "shows help output for -v" do
@@ -102,6 +103,51 @@ tests =
             liftEffect (callCommand cliSpec usageString cliArgs executor)
               `shouldReturn` (Ok unit)
 
+    it "executes a command with several flags" do
+      let
+        cliSpec = Oclis
+          ( emptyCliSpecRaw
+              { name = "git"
+              , description = "The git command"
+              , options = Just
+                  [ { name: Just "color"
+                    , shortName: Nothing
+                    , description: "Set color of output"
+                    , argument: Nothing
+                    , optional: Nothing
+                    , default: Nothing
+                    }
+                  , { name: Just "debug"
+                    , shortName: Nothing
+                    , description: "Activate debug mode"
+                    , argument: Nothing
+                    , optional: Nothing
+                    , default: Nothing
+                    }
+                  ]
+              }
+          )
+        toolArgs = [ "git", "--color", "--debug" ]
+        tokens = tokenizeCliArguments toolArgs
+        usageString = "Irrelevant"
+        executor context = do
+          context.command `shouldEqual` Nothing
+          context.usageString `shouldEqual` usageString
+          context.arguments `shouldEqual`
+            [ (FlagLong "color"), (FlagLong "debug") ]
+          pure $ Ok unit
+
+      case tokensToCliArguments cliSpec tokens of
+        Error err -> fail err
+        Ok cliArgs ->
+          liftEffect
+            ( callCommand
+                cliSpec
+                usageString
+                cliArgs
+                executor
+            ) `shouldReturn` (Ok unit)
+
     it "executes a sub-command with one argument" do
       let
         cliSpec = Oclis
@@ -131,10 +177,10 @@ tests =
           )
         toolArgs = [ "git", "pull", "dir" ]
         usageString = "Irrelevant"
-        executor cmdName usageStr providedArgs = do
-          cmdName `shouldEqual` "pull"
-          usageStr `shouldEqual` usageString
-          providedArgs `shouldEqual` [ (ValArg (TextArg "dir")) ]
+        executor context = do
+          context.command `shouldEqual` Just "pull"
+          context.usageString `shouldEqual` usageString
+          context.arguments `shouldEqual` [ (ValArg (TextArg "dir")) ]
           pure $ Ok unit
 
       case tokensToCliArguments cliSpec $ tokenizeCliArguments toolArgs of
@@ -178,10 +224,10 @@ tests =
           )
         args = [ "git", "pull", "--stats" ]
         usageString = "Irrelevant"
-        executor cmdName usageStr providedArgs = do
-          cmdName `shouldEqual` "pull"
-          usageStr `shouldEqual` usageString
-          providedArgs `shouldEqual` [ (FlagLong "stats") ]
+        executor context = do
+          context.command `shouldEqual` Just "pull"
+          context.usageString `shouldEqual` usageString
+          context.arguments `shouldEqual` [ (FlagLong "stats") ]
           pure $ Ok unit
 
       case (tokensToCliArguments cliSpec $ tokenizeCliArguments args) of
@@ -234,10 +280,11 @@ tests =
           )
         toolArgs = [ "git", "pull", "--output", "dir" ]
         usageString = "Irrelevant"
-        executor cmdName usageStr providedArgs = do
-          cmdName `shouldEqual` "pull"
-          usageStr `shouldEqual` usageString
-          providedArgs `shouldEqual` [ (OptionLong "output" (TextArg "dir")) ]
+        executor context = do
+          context.command `shouldEqual` Just "pull"
+          context.usageString `shouldEqual` usageString
+          context.arguments `shouldEqual`
+            [ (OptionLong "output" (TextArg "dir")) ]
           pure $ Ok unit
 
       case (tokensToCliArguments cliSpec $ tokenizeCliArguments toolArgs) of

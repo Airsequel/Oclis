@@ -1,29 +1,14 @@
 module Test.Tokenizer where
 
-import Prelude (Unit, pure, unit, ($), (#))
+import Prelude (Unit, (#))
 
-import Oclis (parseCliSpec, callCommand)
-import Oclis.Parser (tokensToCliArguments)
-import Oclis.Tokenizer (CliArgToken(..), tokenizeCliArguments)
-import Oclis.Types
-  ( CliArgPrim(..)
-  , CliArgument(..)
-  , Oclis(..)
-  , emptyCliSpec
-  , emptyCliSpecRaw
-  )
 import Control.Bind (discard)
-import Data.Maybe (Maybe(..))
-import Data.Newtype (over)
-import Data.Result (Result(..))
 import Data.String (Pattern(..), split)
-import Effect.Class (liftEffect)
 import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (shouldEqual, fail, shouldReturn)
-import Effect (Effect)
-import Effect.Aff (launchAff_)
-import Test.Spec.Reporter.Console (consoleReporter)
-import Test.Spec.Runner (runSpec)
+import Test.Spec.Assertions (shouldEqual)
+
+import Oclis.Tokenizer (CliArgToken(..), tokenizeCliArguments)
+import Oclis.Types (CliArgPrim(..))
 
 tokenizeCliStr :: String -> Array CliArgToken
 tokenizeCliStr str =

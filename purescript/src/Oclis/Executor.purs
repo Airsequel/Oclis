@@ -52,11 +52,17 @@ parseCliSpec cliSpecJsonStr = do
         # (lmap printJsonDecodeError)
         # fromEither
 
+type ExecutorContext =
+  { usageString :: String
+  , command :: Maybe String
+  , arguments :: Array CliArgument
+  }
+
 callCommand
   :: Oclis
   -> String
   -> Array CliArgument
-  -> (String -> String -> Array CliArgument -> Effect (Result String Unit))
+  -> (ExecutorContext -> Effect (Result String Unit))
   -> Effect (Result String Unit)
 callCommand (Oclis cliSpec) usageString args executor = do
   case args # head of
@@ -116,17 +122,17 @@ callCommand (Oclis cliSpec) usageString args executor = do
               pure (Error errStr)
 
             Just (Oclis _command) -> do
-              executor cmdName usageString providedArgs
+              executor
+                { command: Just cmdName
+                , usageString
+                , arguments: providedArgs
+                }
 
-        Just arg -> do
-          let
-            errMsg =
-              "ERROR: First argument must be a command and not \""
-                <> cliArgToString arg
-                <> "\"\n\n"
-          log $ makeRed $ errMsg <> usageString
-          setExitCode 1
-          pure $ Error errMsg
+        Just _ -> executor
+          { command: Nothing
+          , usageString
+          , arguments: args # drop 1
+          }
 
         Nothing -> do
           log usageString
@@ -140,7 +146,7 @@ repeatString str n =
 
 callCliApp
   :: Oclis
-  -> (String -> String -> Array CliArgument -> Effect (Result String Unit))
+  -> (ExecutorContext -> Effect (Result String Unit))
   -> Effect (Result String Unit)
 callCliApp cliSpec@(Oclis cliSpecRaw) executor = do
   let
