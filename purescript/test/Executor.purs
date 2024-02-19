@@ -1,6 +1,6 @@
 module Test.Executor where
 
-import Prelude (Unit, pure, unit, ($), (<>), (/=))
+import Prelude (Unit, bind, pure, unit, ($), (/=), (<>))
 
 import Control.Bind (discard)
 import Data.Maybe (Maybe(..))
@@ -11,10 +11,9 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual, shouldReturn)
+import Test.Spec.Assertions.String (shouldStartWith)
 
-import Oclis (buildUsageString, callCliApp, callCommand)
-import Oclis.Parser (tokensToCliArguments)
-import Oclis.Tokenizer (tokenizeCliArguments)
+import Oclis (buildUsageString, callCliAppWith, callCliAppWithOutput)
 import Oclis.Types (CliArgPrim(..), CliArgument(..), Oclis(..), emptyCliSpecRaw)
 
 indentSubsequent :: Int -> String -> String
@@ -39,6 +38,11 @@ testEqualityTo actual expected =
         <> "\n\n"
   else Ok ""
 
+shouldBeOk :: Result String String -> Aff Unit
+shouldBeOk value = case value of
+  Error error -> fail error
+  Ok _ -> pure unit
+
 shouldEqualString :: String -> String -> Aff Unit
 shouldEqualString v1 v2 =
   case v1 `testEqualityTo` v2 of
@@ -56,7 +60,7 @@ tests =
           context.arguments `shouldEqual` []
           pure $ Ok unit
 
-      liftEffect (callCliApp executor) `shouldReturn` unit
+      liftEffect (callCliAppWithOutput false executor) `shouldReturn` unit
 
     describe "Help" do
       let
@@ -121,7 +125,7 @@ tests =
             }
 
         buildUsageString cliSpecRaw `shouldEqualString`
-          ( "USAGE: git <command> [options]\n"
+          ( "USAGE: git [command] [options] [args]\n"
               <> "\n"
               <> "The git command\n"
               <> "\n"
@@ -135,37 +139,59 @@ tests =
           )
 
       it "shows help output for -h" do
-        let
-          toolArgs = [ "git", "-h" ]
-          tokens = tokenizeCliArguments toolArgs
-
-        case tokensToCliArguments cliSpec tokens of
-          Error err -> fail err
-          Ok cliArgs ->
-            liftEffect (callCommand cliSpec usageString cliArgs executor)
-              `shouldReturn` (Ok unit)
+        res <- liftEffect
+          (callCliAppWith cliSpec executor false [ "sh", "git", "-h" ])
+        shouldBeOk res
 
       it "shows help output for --help" do
-        let
-          toolArgs = [ "git", "--help" ]
-          tokens = tokenizeCliArguments toolArgs
-
-        case tokensToCliArguments cliSpec tokens of
-          Error err -> fail err
-          Ok cliArgs ->
-            liftEffect (callCommand cliSpec usageString cliArgs executor)
-              `shouldReturn` (Ok unit)
+        res <- liftEffect
+          (callCliAppWith cliSpec executor false [ "sh", "git", "--help" ])
+        shouldBeOk res
 
       it "shows help output for `help`" do
-        let
-          toolArgs = [ "git", "help" ]
-          tokens = tokenizeCliArguments toolArgs
+        res <- liftEffect
+          (callCliAppWith cliSpec executor false [ "sh", "git", "help" ])
+        shouldBeOk res
 
-        case tokensToCliArguments cliSpec tokens of
+      it "shows help output for sub-commands" do
+        let
+          cliSpecRaw = emptyCliSpecRaw
+            { name = "git"
+            , commands = Just
+                [ Oclis
+                    ( emptyCliSpecRaw
+                        { name = "pull"
+                        , description = "The pull sub-command"
+                        , arguments = Just
+                            [ { name: "dir"
+                              , description: "Paths to directories"
+                              , type: "List-Text"
+                              , optional: Just true
+                              , default: Nothing
+                              }
+                            ]
+                        }
+                    )
+                ]
+            }
+
+        res <- liftEffect $ callCliAppWith (Oclis cliSpecRaw) executor false
+          [ "sh", "git", "pull", "--help" ]
+
+        case res of
           Error err -> fail err
-          Ok cliArgs ->
-            liftEffect (callCommand cliSpec usageString cliArgs executor)
-              `shouldReturn` (Ok unit)
+          Ok usageStr ->
+            usageStr `shouldEqualString`
+              -- TODO: Should be `git pull`
+              ( "USAGE: pull [command] [options] [args]\n"
+                  <> "\n"
+                  <> "The pull sub-command\n"
+                  <> "\n"
+                  <> "COMMANDS:\n"
+                  <> "\n"
+                  <> "help  Show this help message\n"
+                  <> "version  Show version\n"
+              )
 
     describe "Version" do
       let
@@ -178,37 +204,19 @@ tests =
           pure $ Ok unit
 
       it "shows version output for -v" do
-        let
-          toolArgs = [ "git", "-v" ]
-          tokens = tokenizeCliArguments toolArgs
-
-        case tokensToCliArguments cliSpec tokens of
-          Error err -> fail err
-          Ok cliArgs ->
-            liftEffect (callCommand cliSpec usageString cliArgs executor)
-              `shouldReturn` (Ok unit)
+        liftEffect
+          (callCliAppWith cliSpec executor false [ "sh", "git", "-v" ])
+          `shouldReturn` (Ok "0")
 
       it "shows version output for --version" do
-        let
-          toolArgs = [ "git", "--version" ]
-          tokens = tokenizeCliArguments toolArgs
-
-        case tokensToCliArguments cliSpec tokens of
-          Error err -> fail err
-          Ok cliArgs ->
-            liftEffect (callCommand cliSpec usageString cliArgs executor)
-              `shouldReturn` (Ok unit)
+        liftEffect
+          (callCliAppWith cliSpec executor false [ "sh", "git", "--version" ])
+          `shouldReturn` (Ok "0")
 
       it "shows version output for `version`" do
-        let
-          toolArgs = [ "git", "version" ]
-          tokens = tokenizeCliArguments toolArgs
-
-        case tokensToCliArguments cliSpec tokens of
-          Error err -> fail err
-          Ok cliArgs ->
-            liftEffect (callCommand cliSpec usageString cliArgs executor)
-              `shouldReturn` (Ok unit)
+        liftEffect
+          (callCliAppWith cliSpec executor false [ "sh", "git", "version" ])
+          `shouldReturn` (Ok "0")
 
     it "executes a command with several flags" do
       let
@@ -234,26 +242,19 @@ tests =
                   ]
               }
           )
-        toolArgs = [ "git", "--color", "--debug" ]
-        tokens = tokenizeCliArguments toolArgs
-        usageString = "Irrelevant"
         executor context = do
-          context.command `shouldEqual` Nothing
-          context.usageString `shouldEqual` usageString
+          context.command `shouldEqual` (Just "git")
+          context.usageString `shouldStartWith`
+            "USAGE: git [command] [options] [args]"
           context.arguments `shouldEqual`
             [ (FlagLong "color"), (FlagLong "debug") ]
           pure $ Ok unit
 
-      case tokensToCliArguments cliSpec tokens of
-        Error err -> fail err
-        Ok cliArgs ->
-          liftEffect
-            ( callCommand
-                cliSpec
-                usageString
-                cliArgs
-                executor
-            ) `shouldReturn` (Ok unit)
+      liftEffect
+        ( callCliAppWith cliSpec executor false
+            [ "sh", "git", "--color", "--debug" ]
+        )
+        `shouldReturn` (Ok "")
 
     it "executes a sub-command with one argument" do
       let
@@ -282,24 +283,16 @@ tests =
                   ]
               }
           )
-        toolArgs = [ "git", "pull", "dir" ]
-        usageString = "Irrelevant"
         executor context = do
           context.command `shouldEqual` Just "pull"
-          context.usageString `shouldEqual` usageString
+          context.usageString `shouldStartWith`
+            "USAGE: pull [command] [options] [args]"
           context.arguments `shouldEqual` [ (ValArg (TextArg "dir")) ]
           pure $ Ok unit
 
-      case tokensToCliArguments cliSpec $ tokenizeCliArguments toolArgs of
-        Error err -> fail err
-        Ok cliArgs ->
-          liftEffect
-            ( callCommand
-                cliSpec
-                usageString
-                cliArgs
-                executor
-            ) `shouldReturn` (Ok unit)
+      liftEffect
+        (callCliAppWith cliSpec executor false [ "sh", "git", "pull", "dir" ])
+        `shouldReturn` (Ok "")
 
     it "executes a sub-command with one flag" do
       let
@@ -329,77 +322,58 @@ tests =
                   ]
               }
           )
-        args = [ "git", "pull", "--stats" ]
-        usageString = "Irrelevant"
         executor context = do
           context.command `shouldEqual` Just "pull"
-          context.usageString `shouldEqual` usageString
+          context.usageString `shouldStartWith`
+            "USAGE: pull [command] [options] [args]"
           context.arguments `shouldEqual` [ (FlagLong "stats") ]
           pure $ Ok unit
 
-      case (tokensToCliArguments cliSpec $ tokenizeCliArguments args) of
-        Error err -> fail err
-        Ok cliArgs ->
-          liftEffect (callCommand cliSpec usageString cliArgs executor)
-            `shouldReturn` (Ok unit)
+      liftEffect
+        ( callCliAppWith cliSpec executor false
+            [ "sh", "git", "pull", "--stats" ]
+        )
+        `shouldReturn` (Ok "")
 
     it "executes a sub-command with one option" do
       let
         cliSpec = Oclis
-          ( emptyCliSpecRaw
-              { name = "git"
-              , description = "The git command"
-              , funcName = Just "runApp"
-              , version = Just "1.0.0"
-              , commands = Just
-                  [ Oclis
-                      ( emptyCliSpecRaw
-                          { name = "pull"
-                          , description = "The pull sub-command"
-                          , funcName = Just "runPull"
-                          , options = Just
-                              [ { name: Just "output"
-                                , shortName: Nothing
-                                , description: "Output directory"
-                                , argument: Just
-                                    { name: "dir"
-                                    , description: "Path to a directory"
-                                    , type: "Text"
-                                    , optional: Nothing
-                                    , default: Nothing
-                                    }
-                                , optional: Nothing
-                                , default: Nothing
-                                }
-                              ]
-                          , arguments = Just
-                              [ { name: "dir"
-                                , description: "Path to a directory"
-                                , type: "Text"
-                                , optional: Nothing
-                                , default: Nothing
-                                }
-                              ]
-                          }
-                      )
-                  ]
-              }
-          )
-        toolArgs = [ "git", "pull", "--output", "dir" ]
-        usageString = "Irrelevant"
+          emptyCliSpecRaw
+            { name = "git"
+            , commands = Just
+                [ Oclis
+                    ( emptyCliSpecRaw
+                        { name = "pull"
+                        , options = Just
+                            [ { name: Just "remote"
+                              , shortName: Nothing
+                              , description: "Remote to pull from"
+                              , argument: Just
+                                  { name: "url"
+                                  , description: "URL to remote"
+                                  , type: "Text"
+                                  , optional: Nothing
+                                  , default: Nothing
+                                  }
+                              , optional: Nothing
+                              , default: Nothing
+                              }
+                            ]
+                        }
+                    )
+                ]
+            }
+
         executor context = do
           context.command `shouldEqual` Just "pull"
-          context.usageString `shouldEqual` usageString
+          context.usageString `shouldStartWith`
+            "USAGE: pull [command] [options] [args]"
           context.arguments `shouldEqual`
-            [ (OptionLong "output" (TextArg "dir")) ]
+            [ (OptionLong "remote" (TextArg "url")) ]
           pure $ Ok unit
 
-      case (tokensToCliArguments cliSpec $ tokenizeCliArguments toolArgs) of
-        Error err -> fail err
-        Ok cliArgs ->
-          ( liftEffect $ callCommand
-              cliSpec
-              usageString
-              cliArgs
-              executor
-          ) `shouldReturn` (Ok unit)
+      liftEffect
+        ( callCliAppWith cliSpec executor false
+            [ "sh", "git", "pull", "--remote", "url" ]
+        )
+        `shouldReturn` (Ok "")

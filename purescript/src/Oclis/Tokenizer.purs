@@ -51,7 +51,6 @@ optionLongTokenFromChars charsRest = do
       ]
     _ -> []
 
--- | Parse CLI arguments into a list of `CliArgToken`s
 -- | One argument can lead to multiple `CliArgToken`s
 -- | e.g. `-ab` -> `[FlagShortToken 'a', FlagShortToken 'b']`
 tokenizeCliArgument :: String -> Array CliArgToken
@@ -81,6 +80,8 @@ tokenizeCliArgument arg = do
 
     _ -> [ TextToken arg ]
 
+-- | Parse CLI arguments into a list of `CliArgToken`s.
+-- | Includes the command name as the first argument.
 tokenizeCliArguments :: Array String -> Array CliArgToken
 tokenizeCliArguments arguments = do
   arguments

@@ -7,16 +7,18 @@ module Oclis where
 import Prelude
   ( Unit
   , bind
+  , const
   , discard
   , pure
   , unit
-  , (#)
-  , ($)
   , (-)
+  , (#)
+  , (+)
+  , (<#>)
   , (<>)
   , (>)
   , (||)
-  , (+)
+  , ($)
   )
 
 import Ansi.Codes (Color(..))
@@ -24,7 +26,7 @@ import Ansi.Output (withGraphics, foreground)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Argonaut.Parser (jsonParser)
-import Data.Array (drop, find, fold, foldMap, foldl, head, replicate)
+import Data.Array (drop, find, fold, foldMap, foldl, head, length, replicate)
 import Data.Bifunctor (lmap)
 import Data.Eq ((==))
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -49,7 +51,7 @@ makeYellow :: String -> String
 makeYellow str =
   withGraphics (foreground Yellow) str
 
-errorAndExit :: String -> Effect (Result String Unit)
+errorAndExit :: String -> Effect (Result String String)
 errorAndExit message = do
   error (makeRed message)
   setExitCode 1
@@ -73,86 +75,88 @@ type ExecutorContext =
   , arguments :: Array CliArgument
   }
 
+handleHelpOrVersion
+  :: CliSpecRaw
+  -> String
+  -> (String -> Effect Unit)
+  -> CliArgument
+  -> Effect (Result String String)
+  -> Effect (Result String String)
+handleHelpOrVersion cliSpecRaw usageString logFunc arg otherwise =
+  if
+    arg == (CmdArg "help")
+      || arg == (FlagLong "help")
+      || arg == (FlagShort 'h') --
+  then do
+    logFunc usageString
+    pure $ Ok usageString
+  else if
+    arg == (CmdArg "version")
+      || arg == (FlagLong "version")
+      || arg == (FlagShort 'v') --
+  then do
+    -- TODO: Only show version of subcommand (if available)
+    let version = cliSpecRaw.version # fromMaybe "0"
+    logFunc version
+    pure $ Ok version
+
+  else otherwise
+
+-- | Recursively calls the command with the given arguments.
+-- | The arguments include the command itself.
 callCommand
-  :: Oclis
+  :: (String -> Effect Unit)
+  -> Oclis
   -> String
   -> Array CliArgument
   -> (ExecutorContext -> Effect (Result String Unit))
-  -> Effect (Result String Unit)
-callCommand (Oclis cliSpec) usageString args executor = do
-  case args # head of
+  -> Effect (Result String String)
+callCommand logFunc (Oclis cliSpecRaw) usageString args executor = do
+  let
+    mainCmd = args # head # case _ of
+      Just (CmdArg cmdName) -> Just cmdName
+      _ -> Nothing
+
+  case args # drop 1 # head of
     Nothing -> do
-      log "No arguments provided"
+      logFunc usageString
       setExitCode 1
-      pure (Error "No arguments provided")
+      pure $ Error usageString
 
-    Just firstArg
-      | firstArg == FlagShort 'h'
-          || firstArg == FlagLong "help"
-          || firstArg == CmdArg "help" -> do
-          log usageString
-          pure $ Ok unit
+    Just arg ->
+      handleHelpOrVersion cliSpecRaw usageString logFunc arg $ do
+        case arg of
+          (CmdArg cmdName) -> do
+            let
+              commandMb = cliSpecRaw.commands
+                # fromMaybe []
+                # find (\(Oclis cmd) -> cmd.name == cmdName)
 
-    Just firstArg
-      | firstArg == FlagShort 'v'
-          || firstArg == FlagLong "version"
-          || firstArg == CmdArg "version" -> do
-          log $ cliSpec.version # fromMaybe "0"
-          pure $ Ok unit
+            case commandMb of
+              Nothing -> do
+                let
+                  errStr =
+                    makeRed ("ERROR: Unknown command \"" <> cmdName <> "\"")
+                      <> "\n\n"
+                      <> usageString
+                logFunc errStr
+                setExitCode 1
+                pure (Error errStr)
 
-    Just _mainCmd ->
-      case args # drop 1 # head of
-        Just arg
-          | arg == (CmdArg "help")
-              || arg == (FlagLong "help")
-              || arg == (FlagShort 'h') -> do
-              -- TODO: Only show help for subcommand
-              log usageString
-              pure $ Ok unit
-
-        Just arg
-          | arg == (CmdArg "version")
-              || arg == (FlagLong "version")
-              || arg == (FlagShort 'v') -> do
-              -- TODO: Only show version of subcommand (if available)
-              log $ cliSpec.version # fromMaybe "0"
-              pure $ Ok unit
-
-        Just (CmdArg cmdName) -> do
-          let
-            commandMb = cliSpec.commands
-              # fromMaybe []
-              # find (\(Oclis cmd) -> cmd.name == cmdName)
-            providedArgs = args # drop 2
-
-          case commandMb of
-            Nothing -> do
-              let
-                errStr =
-                  makeRed ("ERROR: Unknown command \"" <> cmdName <> "\"")
-                    <> "\n\n"
-                    <> usageString
-              log errStr
-              setExitCode 1
-              pure (Error errStr)
-
-            Just (Oclis _command) -> do
-              executor
-                { command: Just cmdName
-                , usageString
-                , arguments: providedArgs
-                }
-
-        Just _ -> executor
-          { command: Nothing
-          , usageString
-          , arguments: args # drop 1
-          }
-
-        Nothing -> do
-          log usageString
-          setExitCode 1
-          pure $ Error "No arguments provided"
+              Just cmdSpec@(Oclis cmdSpecRaw) -> do
+                callCommand
+                  logFunc
+                  cmdSpec
+                  (buildUsageString cmdSpecRaw)
+                  (args # drop 1)
+                  executor
+          _ ->
+            executor
+              { command: mainCmd
+              , usageString
+              , arguments: args # drop 1
+              }
+              <#> (\res -> res <#> const "")
 
 -- | Function to repeat a string n times
 repeatString :: String -> Int -> String
@@ -210,7 +214,7 @@ buildUsageString cliSpecRaw = do
           }
       )
 
-  "USAGE: " <> cliSpecRaw.name <> " <command> [options]"
+  "USAGE: " <> cliSpecRaw.name <> " [command] [options] [args]"
     <> "\n\n"
     <> cliSpecRaw.description
     <> "\n\n"
@@ -234,10 +238,19 @@ buildUsageString cliSpecRaw = do
               )
       )
 
--- | Convenience function to call the CLI app with the default spec and args.
--- | Use `callCliAppWith`` if you want to provide your own values.
+-- | Like `callCliAppWithOutput` but does print the result to stdout
 callCliApp :: (ExecutorContext -> Effect (Result String Unit)) -> Effect Unit
 callCliApp executor =
+  callCliAppWithOutput true executor
+
+-- | Convenience function to call the CLI app with the default spec and args.
+-- | Use `callCliAppWith`` if you want to provide your own values.
+-- | Does not print the result of the executor for testing purposes.
+callCliAppWithOutput
+  :: Boolean
+  -> (ExecutorContext -> Effect (Result String Unit))
+  -> Effect Unit
+callCliAppWithOutput doesPrint executor =
   case parseCliSpec fileContent of
     Error errMsg -> do
       error $
@@ -253,27 +266,43 @@ callCliApp executor =
       setExitCode 1
     Ok cliSpec -> do
       arguments <- argv
-      _ <- callCliAppWith cliSpec executor arguments
+      _ <- callCliAppWith cliSpec executor doesPrint arguments
       pure unit
 
 callCliAppWith
   :: Oclis
   -> (ExecutorContext -> Effect (Result String Unit))
+  -> Boolean
   -> Array String
-  -> Effect (Result String Unit)
-callCliAppWith cliSpec@(Oclis cliSpecRaw) executor arguments = do
+  -> Effect (Result String String)
+callCliAppWith cliSpec@(Oclis cliSpecRaw) executor doesPrint arguments = do
   let
     argsNoInterpreter = arguments # drop 1 -- Drop "node"
-    cliArgsMb =
-      tokensToCliArguments
-        cliSpec
+    logFunc =
+      if doesPrint --
+      then log
+      else (\_ -> pure unit)
+
+  if length argsNoInterpreter == 0 --
+  then do
+    errorAndExit "The CLI app must be called with at least one argument"
+  else do
+    let
+      cliArgsMb = tokensToCliArguments cliSpec
         (tokenizeCliArguments argsNoInterpreter)
 
-  case cliArgsMb of
-    Error err -> errorAndExit err
-    Ok cliArgs ->
-      callCommand
-        cliSpec
-        (buildUsageString cliSpecRaw)
-        cliArgs
-        executor
+    case cliArgsMb of
+      Error errMsg ->
+        if doesPrint --
+        then do
+          setExitCode 1
+          pure $ Error errMsg
+        else
+          errorAndExit errMsg
+      Ok cliArgs -> do
+        callCommand
+          logFunc
+          cliSpec
+          (buildUsageString cliSpecRaw)
+          cliArgs
+          executor
