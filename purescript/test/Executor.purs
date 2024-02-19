@@ -1,18 +1,49 @@
 module Test.Executor where
 
-import Prelude (Unit, pure, unit, ($))
+import Prelude (Unit, pure, unit, ($), (<>), (/=))
 
 import Control.Bind (discard)
 import Data.Maybe (Maybe(..))
+import Data.Monoid (power)
 import Data.Result (Result(..))
+import Data.String (replaceAll, Pattern(..), Replacement(..))
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual, shouldReturn)
 
-import Oclis (callCliApp, callCommand)
+import Oclis (buildUsageString, callCliApp, callCommand)
 import Oclis.Parser (tokensToCliArguments)
 import Oclis.Tokenizer (tokenizeCliArguments)
 import Oclis.Types (CliArgPrim(..), CliArgument(..), Oclis(..), emptyCliSpecRaw)
+
+indentSubsequent :: Int -> String -> String
+indentSubsequent indentation string =
+  replaceAll
+    (Pattern "\n")
+    (Replacement ("\n" <> (" " `power` indentation)))
+    string
+
+-- | Better support for multi-line strings
+testEqualityTo :: String -> String -> Result String String
+testEqualityTo actual expected =
+  if (actual /= expected) then Error
+    $ indentSubsequent 2
+    $ "=========== Actual ===========\n"
+        <> replaceAll (Pattern "\n") (Replacement "|\n") actual
+        <> "|\n"
+        <> "========== Expected ==========\n"
+        <> replaceAll (Pattern "\n") (Replacement "|\n") expected
+        <> "|\n"
+        <> "=============================="
+        <> "\n\n"
+  else Ok ""
+
+shouldEqualString :: String -> String -> Aff Unit
+shouldEqualString v1 v2 =
+  case v1 `testEqualityTo` v2 of
+    Error error -> fail error
+    Ok _ -> (pure unit)
 
 tests :: Spec Unit
 tests =
@@ -36,6 +67,72 @@ tests =
           context.usageString `shouldEqual` usageString
           context.arguments `shouldEqual` []
           pure $ Ok unit
+
+      it "usage string contains sub-commands and their arguments" do
+        let
+          cliSpecRaw = emptyCliSpecRaw
+            { name = "git"
+            , description = "The git command"
+            , version = Just "1.0.0"
+            , commands = Just
+                [ Oclis
+                    ( emptyCliSpecRaw
+                        { name = "add-file"
+                        , description = "The add-file sub-command"
+                        , arguments = Just
+                            [ { name: "path"
+                              , description: "Path to a file"
+                              , type: "Text"
+                              , optional: Nothing
+                              , default: Nothing
+                              }
+                            ]
+                        }
+                    )
+                , Oclis
+                    ( emptyCliSpecRaw
+                        { name = "commit"
+                        , description = "The commit sub-command"
+                        , arguments = Just
+                            [ { name: "msg"
+                              , description: "The commit message"
+                              , type: "Text"
+                              , optional: Just true
+                              , default: Nothing
+                              }
+                            ]
+                        }
+                    )
+                , Oclis
+                    ( emptyCliSpecRaw
+                        { name = "pull"
+                        , description = "The pull sub-command"
+                        , arguments = Just
+                            [ { name: "dir"
+                              , description: "Paths to directories"
+                              , type: "List-Text"
+                              , optional: Just true
+                              , default: Nothing
+                              }
+                            ]
+                        }
+                    )
+                ]
+            }
+
+        buildUsageString cliSpecRaw `shouldEqualString`
+          ( "USAGE: git <command> [options]\n"
+              <> "\n"
+              <> "The git command\n"
+              <> "\n"
+              <> "COMMANDS:\n"
+              <> "\n"
+              <> "add-file path  The add-file sub-command\n"
+              <> "commit [msg]   The commit sub-command\n"
+              <> "pull [dir…]    The pull sub-command\n"
+              <> "help           Show this help message\n"
+              <> "version        Show version\n"
+          )
 
       it "shows help output for -h" do
         let

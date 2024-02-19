@@ -4,7 +4,20 @@
 
 module Oclis where
 
-import Prelude (Unit, bind, discard, pure, unit, (#), ($), (-), (<>), (>), (||))
+import Prelude
+  ( Unit
+  , bind
+  , discard
+  , pure
+  , unit
+  , (#)
+  , ($)
+  , (-)
+  , (<>)
+  , (>)
+  , (||)
+  , (+)
+  )
 
 import Ansi.Codes (Color(..))
 import Ansi.Output (withGraphics, foreground)
@@ -17,6 +30,7 @@ import Data.Eq ((==))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Result (Result(..), fromEither)
 import Data.String as Str
+import Data.String.Pattern (Pattern(..))
 import Effect (Effect)
 import Effect.Class.Console (log, error)
 import Node.Process (argv, setExitCode)
@@ -145,6 +159,81 @@ repeatString :: String -> Int -> String
 repeatString str n =
   fold $ replicate n str
 
+buildUsageString :: CliSpecRaw -> String
+buildUsageString cliSpecRaw = do
+  let
+    buildArgsString :: Maybe (Array Argument) -> String
+    buildArgsString argsMb =
+      case argsMb of
+        Just args -> args # foldMap
+          ( \arg ->
+              let
+                -- Not using `startsWith` here to avoid more dependencies
+                moreThanOne =
+                  case arg.type # Str.stripPrefix (Pattern "List-") of
+                    Just _ -> "…"
+                    Nothing -> ""
+              in
+                if arg.optional == Just true --
+                then "[" <> arg.name <> moreThanOne <> "] "
+                else arg.name <> " "
+          )
+        Nothing -> ""
+
+    calcTotalLength :: _ -> Int
+    calcTotalLength cmd =
+      (Str.length cmd.name) +
+        (Str.length $ buildArgsString cmd.arguments)
+
+    lengthLongestCmd :: Int
+    lengthLongestCmd =
+      cliSpecRaw.commands
+        # fromMaybe []
+        # foldl
+            ( \acc (Oclis cmd) -> do
+                let totalLength = calcTotalLength cmd
+                if acc > totalLength then acc else totalLength
+            )
+            0
+
+    helpCmd = Oclis $
+      ( emptyCliSpecRaw
+          { name = "help"
+          , description = "Show this help message"
+          }
+      )
+
+    versionCmd = Oclis
+      ( emptyCliSpecRaw
+          { name = "version"
+          , description = "Show version"
+          }
+      )
+
+  "USAGE: " <> cliSpecRaw.name <> " <command> [options]"
+    <> "\n\n"
+    <> cliSpecRaw.description
+    <> "\n\n"
+    <> "COMMANDS:"
+    <> "\n\n"
+    <>
+      ( cliSpecRaw.commands <> Just [ helpCmd, versionCmd ]
+          # fromMaybe []
+          # foldMap
+              ( \(Oclis cmd) ->
+                  cmd.name
+                    <> " "
+                    <> buildArgsString cmd.arguments
+                    <>
+                      ( repeatString " "
+                          (lengthLongestCmd - calcTotalLength cmd)
+                      )
+                    <> " "
+                    <> cmd.description
+                    <> "\n"
+              )
+      )
+
 -- | Convenience function to call the CLI app with the default spec and args.
 -- | Use `callCliAppWith`` if you want to provide your own values.
 callCliApp :: (ExecutorContext -> Effect (Result String Unit)) -> Effect Unit
@@ -174,41 +263,6 @@ callCliAppWith
   -> Effect (Result String Unit)
 callCliAppWith cliSpec@(Oclis cliSpecRaw) executor arguments = do
   let
-    lengthLongestCmd :: Int
-    lengthLongestCmd =
-      cliSpecRaw.commands
-        # fromMaybe []
-        # foldl
-            ( \acc (Oclis cmd) ->
-                if acc > Str.length cmd.name then acc
-                else Str.length cmd.name
-            )
-            0
-
-    usageString =
-      "USAGE: " <> cliSpecRaw.name <> " <command> [options]"
-        <> "\n\n"
-        <> cliSpecRaw.description
-        <> "\n\n"
-        <> "COMMANDS:"
-        <> "\n\n"
-        <>
-          ( cliSpecRaw.commands
-              # fromMaybe []
-              # foldMap
-                  ( \(Oclis cmd) ->
-                      cmd.name
-                        <>
-                          ( repeatString " "
-                              (lengthLongestCmd - Str.length cmd.name)
-                          )
-                        <> "  "
-                        <> cmd.description
-                        <> "\n"
-                  )
-          )
-
-  let
     argsNoInterpreter = arguments # drop 1 -- Drop "node"
     cliArgsMb =
       tokensToCliArguments
@@ -217,4 +271,9 @@ callCliAppWith cliSpec@(Oclis cliSpecRaw) executor arguments = do
 
   case cliArgsMb of
     Error err -> errorAndExit err
-    Ok cliArgs -> callCommand cliSpec usageString cliArgs executor
+    Ok cliArgs ->
+      callCommand
+        cliSpec
+        (buildUsageString cliSpecRaw)
+        cliArgs
+        executor
