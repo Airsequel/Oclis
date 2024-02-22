@@ -9,6 +9,8 @@ use nickel_lang_core::error::report::ErrorFormat;
 use nickel_lang_core::serialize::{to_string, ExportFormat};
 use nickel_lang_core::{eval::cache::CacheImpl, program::Program};
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -80,7 +82,8 @@ macro_rules! include_and_write_file {
   ($filename:expr) => {{
     std::fs::write(
       concat!(OCLIS_SRC!(), $filename),
-      include_str!(concat!("../purescript/", OCLIS_SRC!(), $filename)),
+      include_str!(concat!("../purescript/", OCLIS_SRC!(), $filename))
+        .replace("{{version}}", VERSION),
     )?;
   }};
 }
