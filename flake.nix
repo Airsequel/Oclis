@@ -11,12 +11,12 @@
         pkgs = import nixpkgs { inherit system; };
         naersk-lib = pkgs.callPackage naersk { };
 
-        # Additional packages required to build Nickel on Darwin
+        # Additional packages required to build on Darwin
         systemSpecificPkgs =
-          if pkgs.stdenv.isDarwin then
+          if pkgs.stdenv.hostPlatform.isDarwin then
             [
-              pkgs.darwin.apple_sdk.frameworks.Security
-              pkgs.darwin.libiconv
+              pkgs.apple-sdk
+              pkgs.libiconv
             ]
           else
             [ ];
