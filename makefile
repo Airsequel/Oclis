@@ -7,6 +7,11 @@ help: makefile
 build: processing-pipeline.svg
 
 
+.PHONY: format
+format:
+	echo "TODO"
+
+
 .PHONY: install
 install:
 	cargo install --path .
