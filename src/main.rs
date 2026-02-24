@@ -89,7 +89,7 @@ macro_rules! include_and_write_file {
 }
 
 // TODO: Check if the code is really in `src` or in another directory
-fn write_purescript_code(json_spec: String) -> Result<(), Error> {
+fn write_purescript_code(json_spec: &str) -> Result<(), Error> {
   fs::create_dir_all(OCLIS_SRC!())?;
 
   include_and_write_file!("readme.md");
@@ -125,7 +125,7 @@ fn write_purescript_code(json_spec: String) -> Result<(), Error> {
 
 // TODO: Also check if directory name starts with `purescript`
 // Misusing the std::io Error here type for simplicity's sake
-fn if_purescript_write_files(json_spec: String) -> Result<(), Error> {
+fn if_purescript_write_files(json_spec: &str) -> Result<(), Error> {
   if [
     "spago.yaml",
     "spago.dhall",
@@ -187,6 +187,70 @@ fn if_javascript_write_files() -> Result<(), Error> {
   }
 }
 
+#[rustfmt::skip]
+macro_rules! RUST_OCLIS_SRC { () => { "src/oclis/" }; }
+macro_rules! include_and_write_rust_file {
+  ($filename:expr) => {{
+    std::fs::write(
+      concat!(RUST_OCLIS_SRC!(), $filename),
+      include_str!(concat!("../rust/", RUST_OCLIS_SRC!(), $filename))
+        .replace("{{version}}", VERSION),
+    )?;
+  }};
+}
+
+fn write_rust_code(json_spec: &str) -> Result<(), Error> {
+  fs::create_dir_all(RUST_OCLIS_SRC!())?;
+
+  include_and_write_rust_file!("readme.md");
+  include_and_write_rust_file!("mod.rs");
+  include_and_write_rust_file!("types.rs");
+  include_and_write_rust_file!("tokenizer.rs");
+  include_and_write_rust_file!("parser.rs");
+  include_and_write_rust_file!("executor.rs");
+
+  let spec_embed = format!(
+    "\
+      // CAUTION:\n\
+      // THIS FILE WAS GENERATED BASED ON `oclis.ncl`.\n\
+      // DO NOT EDIT MANUALLY!\n\
+      \n\
+      pub const FILE_CONTENT: &str = r#\"\n\
+      {}\n\
+      \"#;\n\
+    ",
+    json_spec
+  );
+  fs::write(concat!(RUST_OCLIS_SRC!(), "spec_embed.rs"), spec_embed)?;
+
+  println!(
+    "{}",
+    concat!("✅ Created Rust files at \"./", RUST_OCLIS_SRC!(), "\"").green()
+  );
+  println!(
+    "{}",
+    "   Make sure to add `serde` and `serde_json` to your Cargo.toml"
+      .yellow()
+  );
+
+  Ok(())
+}
+
+// Misusing the std::io Error here type for simplicity's sake
+fn if_rust_write_files(json_spec: &str) -> Result<(), Error> {
+  if ["Cargo.toml"]
+    .iter()
+    .any(|file| fs::metadata(file).is_ok())
+  {
+    write_rust_code(json_spec)
+  } else {
+    Err(Error::new(
+      std::io::ErrorKind::NotFound,
+      "No Rust files found",
+    ))
+  }
+}
+
 fn detect_language_and_write_files(json_spec: String) -> Result<(), Error> {
   fn try_next(
     test_func: impl FnOnce() -> Result<(), Error>,
@@ -198,7 +262,10 @@ fn detect_language_and_write_files(json_spec: String) -> Result<(), Error> {
     }
   }
 
-  if_purescript_write_files(json_spec)
+  let spec = &json_spec;
+
+  if_purescript_write_files(spec)
+    .or_else(|err| try_next(|| if_rust_write_files(spec), err))
     .or_else(|err| try_next(if_haskell_write_files, err))
     .or_else(|err| try_next(if_javascript_write_files, err))
     .map_err(|err| match err.kind() {
