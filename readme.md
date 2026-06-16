@@ -1,5 +1,7 @@
 # Oclis
 
+https://crates.io/crates/unilang
+
 CLI (Command Line Interface) app builder
 based on a simple, obvious specification file.
 
@@ -64,11 +66,14 @@ Some features of other CLI frameworks are deliberately not supported:
 - [Decli] - Declarative CLI tool builder.
 - [docopt] - Command-line interface description language.
 - [make-cli] - Declarative CLI framework for Node.js.
+- [Usage] - Spec for defining a CLI's arguments, flags, and environment
+    variables to generate completions, docs, and more.
 
 [CLI Definition Language]: https://www.codesynthesis.com/projects/cli/
 [Decli]: https://github.com/woile/decli
 [docopt]: http://docopt.org/
 [make-cli]: https://github.com/dword-design/make-cli
+[Usage]: https://github.com/jdx/usage
 
 
 ### Manual CLI Frameworks
